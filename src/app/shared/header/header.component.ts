@@ -8,7 +8,8 @@ import {AuthStore} from '../../stores/auth.store';
   templateUrl: './header.component.html',
 })
 export class HeaderComponent {
-  private readonly auth = inject(AuthStore);
+  protected auth = inject(AuthStore);
 
+  readonly user = this.auth.user;
 
 }

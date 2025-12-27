@@ -11,21 +11,19 @@
           <a href="#" class="nav-link">Home</a>
         </li>
       </ul>
-      <!--
       <div class="navbar-text">
-        @if (isLoggedIn) {
+        @if (user() !== null) {
           <div class="dropdown">
-            <span class="dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ username }}</span>
+            <span class="dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ user()?.username }}</span>
 
             <ul class="dropdown-menu">
-              <li><a class="dropdown-item" (click)="logout()">Logout</a></li>
+              <li><a class="dropdown-item" (click)="auth.logout()">Logout</a></li>
             </ul>
           </div>
         }
         @else {
-          <button class="btn btn-success fw-bold"><a href="/login" class="fw-bold no-underline">Log In</a></button>
+          <button class="btn btn-success fw-bold"><a routerLink="/login" class="fw-bold no-underline">Log In</a></button>
         }
-        -->
       </div>
     </div>
   </div>
