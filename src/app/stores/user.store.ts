@@ -12,6 +12,7 @@ export class UserStore {
 
   loadUser(uid: string) {
     this.sub?.unsubscribe();
+
     const ref = doc(this.firestore, 'users', uid);
 
     this.sub = docSnapshots(ref).subscribe(snap => {

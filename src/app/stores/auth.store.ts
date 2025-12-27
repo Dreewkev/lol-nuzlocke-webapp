@@ -22,6 +22,7 @@ export class AuthStore {
   constructor() {
     onAuthStateChanged(this.auth, (u) => {
       this.authUser.set(u);
+      console.log('projectId', (this.fireStore as any)?._app?.options?.projectId);
 
       if (u) {
         // Firestore-User laden
@@ -45,7 +46,6 @@ export class AuthStore {
 
   async register(username: string, email: string, password: string) {
     this.error.set(null);
-
     try {
       const cred = await createUserWithEmailAndPassword(this.auth, email, password);
 
@@ -53,15 +53,26 @@ export class AuthStore {
       await updateProfile(cred.user, {displayName: username});
 
       // Firestore-User (Domain!)
-      await setDoc(doc(this.fireStore, 'users', cred.user.uid), {
-        uid: cred.user.uid,
-        username,
-        email: cred.user.email,
-        createdAt: serverTimestamp()
-      });
-
+      try {
+        await setDoc(doc(this.fireStore, 'users', cred.user.uid), {
+          uid: cred.user.uid,
+          username,
+          email: cred.user.email,
+          createdAt: serverTimestamp()
+        });
+        console.log('✅ setDoc done', cred.user.uid);
+      } catch(err: any) {
+        console.error('❌ setDoc failed', {
+          code: err?.code,
+          message: err?.message,
+          name: err?.name,
+          err
+        });
+        this.error.set(err?.code ?? err?.message ?? 'Firestore write failed');
+      }
       // authUser NICHT manuell setzen – onAuthStateChanged übernimmt das
     } catch (err: any) {
+      console.error('REGISTER FAILED', err);
       this.error.set(err.message ?? 'Unable to register');
     }
   }
