@@ -1,15 +1,12 @@
 <nav class="navbar navbar-expand-lg mb-4 navbar-dark bg-dark">
   <div class="container">
-    <a href="#" class="navbar-brand mb-0 h1">
+    <a routerLink="/" class="navbar-brand mb-0 h1">
       <img class="d-inline-block align-top" width="33" height="30"
            src="https://s3.getstickerpack.com/storage/uploads/sticker-pack/league-of-legends-logos/tray_large.png?a0c6292a16fb208e363e63e862fa40ff">
       Nuzlocke
     </a>
     <div class="collapse navbar-collapse" id="navbarContent">
       <ul class="navbar-nav me-auto">
-        <li class="nav-item active">
-          <a href="#" class="nav-link">Home</a>
-        </li>
       </ul>
       <div class="navbar-text">
         @if (user() !== null) {
@@ -17,7 +14,7 @@
             <span class="dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">{{ user()?.username }}</span>
 
             <ul class="dropdown-menu">
-              <li><a class="dropdown-item" (click)="auth.logout()">Logout</a></li>
+              <li><a class="dropdown-item" (click)="authStore.logout()">Logout</a></li>
             </ul>
           </div>
         }

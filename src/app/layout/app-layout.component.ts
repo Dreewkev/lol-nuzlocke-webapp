@@ -4,8 +4,9 @@ import {HeaderComponent} from '../shared/header/header.component';
 
 @Component({
   selector: 'app-layout',
+  standalone: true,
   imports: [RouterOutlet, HeaderComponent],
-  templateUrl: 'app-layout.component.html',
+  templateUrl: './app-layout.component.html',
 })
 export class LayoutComponent {
 

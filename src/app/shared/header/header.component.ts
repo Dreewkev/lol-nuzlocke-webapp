@@ -1,6 +1,7 @@
 import {Component, inject} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {AuthStore} from '../../stores/auth.store';
+import {UserStore} from '../../stores/user.store';
 
 @Component({
   selector: 'app-header',
@@ -8,8 +9,9 @@ import {AuthStore} from '../../stores/auth.store';
   templateUrl: './header.component.html',
 })
 export class HeaderComponent {
-  protected auth = inject(AuthStore);
+  protected authStore = inject(AuthStore);
+  protected userStore = inject(UserStore);
 
-  readonly user = this.auth.user;
+  readonly user = this.userStore.user;
 
 }

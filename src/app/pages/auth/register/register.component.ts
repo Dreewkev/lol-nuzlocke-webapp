@@ -12,8 +12,6 @@ export class RegisterComponent implements OnInit {
   protected auth = inject(AuthStore);
   protected fb = inject(FormBuilder);
   protected router = inject(Router);
-
-  public isSignInSuccess: boolean = false;
   registerForm!: FormGroup;
 
   ngOnInit(): void {
@@ -23,6 +21,12 @@ export class RegisterComponent implements OnInit {
   initForm(): void {
     this.registerForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
+      username: ['', [
+        Validators.required,
+        Validators.minLength(3),
+        Validators.maxLength(20),
+        Validators.pattern(/^[a-zA-Z0-9_]+$/)
+      ]],
       password: ['', [Validators.required, Validators.minLength(6)]],
     });
   }
@@ -44,10 +48,10 @@ export class RegisterComponent implements OnInit {
     console.log('SUBMIT', this.registerForm.value, this.registerForm.valid);
     if (!this.registerForm.valid) return;
 
-    const { email, password } = this.registerForm.value;
+    const {username, email, password} = this.registerForm.value;
 
     try {
-      await this.auth.register(email!, password!);
+      await this.auth.register(username ,email!, password!);
 
       this.showSuccessToast();
       setTimeout(() => {

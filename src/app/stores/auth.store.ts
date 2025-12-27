@@ -4,36 +4,75 @@ import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  signOut
+  signOut, updateProfile
 } from '@angular/fire/auth';
+import {doc, Firestore, setDoc, serverTimestamp} from '@angular/fire/firestore';
+import {UserStore} from './user.store';
 
-@Injectable({ providedIn: 'root' })
+@Injectable({providedIn: 'root'})
 export class AuthStore {
   private auth = inject(Auth);
+  private fireStore = inject(Firestore);
+  private userStore = inject(UserStore);
 
-  readonly user = signal<any | null>(null);
-  readonly loading = signal(true); // nur für initialen Auth-Check
+  readonly authUser = signal<any | null>(null);
+  readonly loading = signal(true);
   readonly error = signal<string | null>(null);
 
   constructor() {
     onAuthStateChanged(this.auth, (u) => {
-      this.user.set(u);
+      this.authUser.set(u);
+
+      if (u) {
+        // Firestore-User laden
+        this.userStore.loadUser(u.uid);
+      } else {
+        this.userStore.clearUser();
+      }
+
       this.loading.set(false);
     });
   }
 
   async login(email: string, password: string) {
     this.error.set(null);
-    await signInWithEmailAndPassword(this.auth, email, password);
+    try {
+      await signInWithEmailAndPassword(this.auth, email, password);
+    } catch (err: any) {
+      this.error.set(err.message ?? 'Unable to login');
+    }
   }
 
-  async register(email: string, password: string) {
+  async register(username: string, email: string, password: string) {
     this.error.set(null);
-    await createUserWithEmailAndPassword(this.auth, email, password);
+
+    try {
+      const cred = await createUserWithEmailAndPassword(this.auth, email, password);
+
+      // Auth-Profil
+      await updateProfile(cred.user, {displayName: username});
+
+      // Firestore-User (Domain!)
+      await setDoc(doc(this.fireStore, 'users', cred.user.uid), {
+        uid: cred.user.uid,
+        username,
+        email: cred.user.email,
+        createdAt: serverTimestamp()
+      });
+
+      // authUser NICHT manuell setzen – onAuthStateChanged übernimmt das
+    } catch (err: any) {
+      this.error.set(err.message ?? 'Unable to register');
+    }
   }
 
   async logout() {
-    await signOut(this.auth);
+    this.error.set(null);
+    try {
+      await signOut(this.auth);
+    } catch (err: any) {
+      this.error.set(err.message ?? 'Unable to logout');
+    }
   }
 }
 
