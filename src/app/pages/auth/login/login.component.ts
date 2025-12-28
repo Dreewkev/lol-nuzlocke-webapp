@@ -26,24 +26,16 @@ export class LoginComponent implements OnInit {
     })
   }
 
-  loginWithEmailAndPassword() {
-    if(this.loginForm.valid) {
-      const userData = {
-        email: this.loginForm.value.email,
-        password: this.loginForm.value.password
-      }
+  async loginWithEmailAndPassword() {
+    if (this.loginForm.invalid) return;
 
-      try {
-        this.auth.login(userData.email, userData.password).then((res: any) => {
-          if(res.success) {
-            this.router.navigateByUrl('');
-          }
-        }).catch((error: any) => {
-          console.error(error);
-        })
-      } catch(error) {
-        console.error(error);
-      }
+    const {email, password} = this.loginForm.value;
+
+    await this.auth.login(email, password);
+
+    // wenn du im Store error setzt, kannst du so prüfen
+    if (!this.auth.error()) {
+      await this.router.navigateByUrl('/');
     }
   }
 }

@@ -1,89 +1,87 @@
-import {inject, Injectable, signal} from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import {
   Auth,
   createUserWithEmailAndPassword,
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  signOut, updateProfile
+  signOut,
+  updateProfile
 } from '@angular/fire/auth';
-import {doc, Firestore, setDoc, serverTimestamp} from '@angular/fire/firestore';
-import {UserStore} from './user.store';
+import { doc, Firestore, setDoc, serverTimestamp } from '@angular/fire/firestore';
+import { UserStore } from './user.store';
 
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class AuthStore {
-  private auth = inject(Auth);
-  private fireStore = inject(Firestore);
-  private userStore = inject(UserStore);
+  private readonly auth = inject(Auth);
+  private readonly db = inject(Firestore);
+  private readonly userStore = inject(UserStore);
 
   readonly authUser = signal<any | null>(null);
-  readonly loading = signal(true);
+  readonly initialized = signal(false);
+  readonly busy = signal(false);
   readonly error = signal<string | null>(null);
 
   constructor() {
     onAuthStateChanged(this.auth, (u) => {
       this.authUser.set(u);
-      console.log('projectId', (this.fireStore as any)?._app?.options?.projectId);
 
       if (u) {
-        // Firestore-User laden
         this.userStore.loadUser(u.uid);
       } else {
         this.userStore.clearUser();
       }
 
-      this.loading.set(false);
+      this.initialized.set(true);
     });
   }
 
   async login(email: string, password: string) {
     this.error.set(null);
+    this.busy.set(true);
+
     try {
       await signInWithEmailAndPassword(this.auth, email, password);
     } catch (err: any) {
-      this.error.set(err.message ?? 'Unable to login');
+      this.error.set(err?.code ?? err?.message ?? 'Unable to login');
+    } finally {
+      this.busy.set(false);
     }
   }
 
   async register(username: string, email: string, password: string) {
     this.error.set(null);
+    this.busy.set(true);
+
     try {
       const cred = await createUserWithEmailAndPassword(this.auth, email, password);
 
-      // Auth-Profil
-      await updateProfile(cred.user, {displayName: username});
+      await updateProfile(cred.user, { displayName: username });
 
-      // Firestore-User (Domain!)
-      try {
-        await setDoc(doc(this.fireStore, 'users', cred.user.uid), {
-          uid: cred.user.uid,
-          username,
-          email: cred.user.email,
-          createdAt: serverTimestamp()
-        });
-        console.log('✅ setDoc done', cred.user.uid);
-      } catch(err: any) {
-        console.error('❌ setDoc failed', {
-          code: err?.code,
-          message: err?.message,
-          name: err?.name,
-          err
-        });
-        this.error.set(err?.code ?? err?.message ?? 'Firestore write failed');
-      }
-      // authUser NICHT manuell setzen – onAuthStateChanged übernimmt das
+      await setDoc(doc(this.db, 'users', cred.user.uid), {
+        uid: cred.user.uid,
+        username,
+        email: cred.user.email,
+        createdAt: serverTimestamp()
+      });
+
+      this.userStore.loadUser(cred.user.uid);
     } catch (err: any) {
-      console.error('REGISTER FAILED', err);
-      this.error.set(err.message ?? 'Unable to register');
+      this.error.set(err?.code ?? err?.message ?? 'Unable to register');
+    } finally {
+      this.busy.set(false);
     }
   }
 
   async logout() {
     this.error.set(null);
+    this.busy.set(true);
+
     try {
       await signOut(this.auth);
     } catch (err: any) {
-      this.error.set(err.message ?? 'Unable to logout');
+      this.error.set(err?.code ?? err?.message ?? 'Unable to logout');
+    } finally {
+      this.busy.set(false);
     }
   }
 }
-
