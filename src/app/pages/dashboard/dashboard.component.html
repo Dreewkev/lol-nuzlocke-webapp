@@ -1,0 +1,22 @@
+<h1>Dashboard</h1>
+
+<button class="btn btn-primary" (click)="createGame()">+ Neues Game</button>
+<input [formControl]="joinCode" placeholder="Invite code" />
+<button class="btn btn-primary" (click)="joinGame()">Join</button>
+
+@if (gamesStore.listError()) {
+  <p>{{ gamesStore.listError() }}</p>
+}
+
+@if (gamesStore.myGames().length === 0) {
+  <p>No games yet.</p>
+} @else {
+  <ul>
+    @for (g of gamesStore.myGames(); track g.gameId) {
+      <li>
+        {{ g.gameId }} ({{ g.role }})
+        <a [routerLink]="['/games', g.gameId]">open</a>
+      </li>
+    }
+  </ul>
+}

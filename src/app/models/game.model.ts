@@ -5,7 +5,6 @@ export interface Game {
   ownerUid: string;
   status: GameStatus;
   inviteCode: string;
-  inviteEnabled: boolean;
   createdAt: any;
   updatedAt: any;
 }

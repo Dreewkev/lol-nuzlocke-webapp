@@ -1,0 +1,33 @@
+<div class="container">
+  <div class="row g-3">
+    <div class="col-8 mt-3">
+      <div class="bg-dark rounded-3 p-4">
+        <h1>{{ game()!.name }}</h1>
+
+      </div>
+    </div>
+    <div class="col-4 mt-3">
+      <div class="bg-dark rounded-3 p-4">
+        <p>State: {{state()}}, myPlayer: {{myPlayer()}}</p>
+        @if (state() && myPlayer()) {
+          @if (state()!.phase === 'idle' && myPlayer()!.role === 'owner') {
+            <button class="btn btn-success" (click)="startRound()">Start Round</button>
+          } @else {
+            <p class="text-secondary mb-0">Phase: {{ state()!.phase }} | Round: {{ state()!.round }}</p>
+          }
+        }
+
+        <p><b>Invite Code:</b> {{ game()!.inviteCode }}</p>
+        <button class="btn btn-primary" (click)="copyInviteCode()">Copy</button>
+
+        <h3>Members</h3>
+        <ul>
+          @for (m of members(); track m.uid) {
+            <li>{{ m.username ?? m.uid }} ({{ m.role }})</li>
+          }
+        </ul>
+
+      </div>
+    </div>
+  </div>
+</div>
