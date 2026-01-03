@@ -2,22 +2,26 @@
   <div class="row g-3">
     <div class="col-8 mt-3">
       <div class="bg-dark rounded-3 p-4">
-        <h1>{{ game()!.name }}</h1>
+        <h1>{{ game()?.name }}</h1>
+        <br>
+        @if(state()?.phase === 'idle' && myPlayer()?.role === 'owner') {
+
+        }
+        <button class="btn btn-primary" (click)="startRound()">Start Round</button>
+        <br>
+        @for (member of members(); track member.uid) {
+          <h4>{{member.username}}</h4>
+        }
 
       </div>
     </div>
     <div class="col-4 mt-3">
       <div class="bg-dark rounded-3 p-4">
-        <p>State: {{state()}}, myPlayer: {{myPlayer()}}</p>
         @if (state() && myPlayer()) {
-          @if (state()!.phase === 'idle' && myPlayer()!.role === 'owner') {
-            <button class="btn btn-success" (click)="startRound()">Start Round</button>
-          } @else {
-            <p class="text-secondary mb-0">Phase: {{ state()!.phase }} | Round: {{ state()!.round }}</p>
-          }
+          <p class="mb-0">Phase: {{ state()!.phase }} | Round: {{ state()!.round }}</p>
         }
 
-        <p><b>Invite Code:</b> {{ game()!.inviteCode }}</p>
+        <p><b>Invite Code:</b> {{ game()?.inviteCode }}</p>
         <button class="btn btn-primary" (click)="copyInviteCode()">Copy</button>
 
         <h3>Members</h3>

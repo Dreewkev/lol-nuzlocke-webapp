@@ -1,4 +1,4 @@
-import {Component, inject, signal} from '@angular/core';
+import {Component, effect, inject, signal} from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {collection, collectionData, doc, docData, Firestore} from '@angular/fire/firestore';
 import {Subscription} from 'rxjs';
@@ -32,6 +32,8 @@ export class GameDetailComponent {
   readonly myPlayer = this.gameStateStore.myPlayer;
 
   constructor() {
+    console.log('State: ', this.state)
+    console.log('MyPlayer: ', this.myPlayer)
     // Game doc
     const gameRef = doc(this.db, `games/${this.gameId}`);
     this.subGame = docData(gameRef).subscribe({
@@ -47,16 +49,34 @@ export class GameDetailComponent {
     });
 
     // ✅ GameStateStore starten
-    const uid = this.auth.authUser()?.uid;
-    if (!uid) {
-      this.error.set('Not logged in');
-      return;
-    }
-    this.gameStateStore.listen(this.gameId, uid);
+    effect(() => {
+      const uid = this.auth.authUser()?.uid;
+      if (!uid) {
+        this.error.set('Not logged in');
+        return;
+      }
+      this.gameStateStore.listen(this.gameId, uid);
+    });
   }
 
   startRound() {
     this.gameStateStore.startRound(this.gameId);
+  }
+
+  rollForAll() {
+    this.gameStateStore.rollForAll(this.gameId);
+  }
+
+  lockIn() {
+    this.gameStateStore.lockIn(this.gameId);
+  }
+
+  rollForMember(uid: string) {
+    return this.state()?.rollsByUid?.[uid] ?? null;
+  }
+
+  isLocked(uid: string) {
+    return this.state()?.lockedByUid?.[uid] === true;
   }
 
   async copyInviteCode() {
