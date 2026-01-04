@@ -11,8 +11,9 @@ import {
   updateDoc
 } from '@angular/fire/firestore';
 import {Subscription} from 'rxjs';
-import {GameState, Role, Roll} from '../models/game-state.model';
+import {GameState} from '../models/game-state.model';
 import {PlayerState} from '../models/player-state.model';
+import {Role} from '../enums/role';
 
 @Injectable({ providedIn: 'root' })
 export class GameStateStore {
@@ -71,7 +72,6 @@ export class GameStateStore {
     await this.rollForAll(gameId);
   }
 
-  // ✅ NEW: Owner rollt für alle Members
   async rollForAll(gameId: string) {
     if (this.myPlayer()?.role !== 'owner') {
       throw new Error('Only owner can roll');
@@ -81,31 +81,41 @@ export class GameStateStore {
     const uids = membersSnap.docs.map(d => d.id);
 
     if (uids.length === 0) throw new Error('No members in game');
+    if (uids.length > 5) throw new Error('Max 5 players supported');
 
-    const allRoles: Role[] = ['TOP','JUNGLE','MID','ADC','SUPPORT'];
+    const allRoles: Role[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'];
 
     const shuffledUids = this.shuffle(uids);
 
-    for (const uid in shuffledUids) {
+    const rollsByUid: Record<string, { main: Role; secondary?: Role }> = {};
 
+    if (shuffledUids.length === 5) {
+      const roles = this.shuffle(allRoles);
+      for (let i = 0; i < 5; i++) {
+        const uid = shuffledUids[i];
+        rollsByUid[uid] = { main: roles[i] };
+      }
+    } else {
+      // 1–4 spieler
+      const mains = this.shuffle(allRoles).slice(0, shuffledUids.length);
+
+      for (let i = 0; i < shuffledUids.length; i++) {
+        const uid = shuffledUids[i];
+        const main = mains[i];
+
+        const secondaryPool = allRoles.filter(r => r !== main);
+        const secondary = secondaryPool[Math.floor(Math.random() * secondaryPool.length)];
+
+        rollsByUid[uid] = { main, secondary };
+      }
     }
 
-    /*const roles: Role[] = ['top', 'jg', 'mid', 'adc', 'sup'];
-
-    const rollsByUid: Record<string, Roll> = {};
-    for (const uid of uids) {
-      rollsByUid[uid] = {
-        role: roles[Math.floor(Math.random() * roles.length)],
-        rolledAt: serverTimestamp()
-      };
-    }*/
-
-    /*await setDoc(doc(this.db, `games/${gameId}/state/main`), {
+    await setDoc(doc(this.db, `games/${gameId}/state/main`), {
       phase: 'rolling',
       rollsByUid,
       lockedByUid: {},
       lastActionAt: serverTimestamp()
-    }, { merge: true });*/
+    }, { merge: true });
   }
 
   // ✅ NEW: Spieler lockt seinen Roll
@@ -136,7 +146,7 @@ export class GameStateStore {
     if (uids.length === 0) return;
 
     const locked = s.lockedByUid ?? {};
-    const allLocked = uids.every(uid => locked[uid] === true);
+    const allLocked = uids.every(uid => locked[uid]);
 
     if (!allLocked) return;
 
@@ -146,12 +156,13 @@ export class GameStateStore {
     }, { merge: true });
   }
 
-  private shuffle(arr: string[]): string[] {
-    const a = [...arr]; // nicht mutieren
+  private shuffle<T>(arr: readonly T[]): T[] {
+    const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
   }
+
 }

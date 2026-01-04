@@ -1,4 +1,4 @@
-import { MemberRole } from './game-member.model';
+import {MemberRole} from '../enums/memberRole';
 
 export interface GameRef {
   gameId: string;

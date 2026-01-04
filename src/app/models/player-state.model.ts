@@ -1,4 +1,5 @@
-export type MemberRole = 'owner' | 'member';
+import {MemberRole} from '../enums/memberRole';
+
 
 export interface PlayerStats {
   gamesPlayed: number;

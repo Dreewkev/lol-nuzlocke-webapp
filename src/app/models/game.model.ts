@@ -1,4 +1,4 @@
-export type GameStatus = 'active' | 'archived';
+import {GameStatus} from '../enums/gamestatus';
 
 export interface Game {
   name: string;

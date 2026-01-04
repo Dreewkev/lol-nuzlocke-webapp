@@ -1,10 +1,5 @@
-export type Phase = 'idle' | 'rolling' | 'locked' | 'finished';
-type Role = 'TOP' | 'JUNGLE' | 'MID' | 'ADC' | 'SUPPORT';
-
-interface PlayerRoles {
-  main: Role;
-  secondary?: Role;
-}
+import {Phase} from '../enums/phase';
+import {PlayerRoles} from './player-roles.model';
 
 export interface GameState {
   phase: Phase;
