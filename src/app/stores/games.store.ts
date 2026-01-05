@@ -1,4 +1,4 @@
-import {Injectable, inject, signal} from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import {
   Firestore,
   collection,
@@ -8,13 +8,15 @@ import {
   serverTimestamp,
   query,
   orderBy,
-  collectionData, limit, where, getDocs
+  collectionData,
+  limit,
+  where
 } from '@angular/fire/firestore';
-import {firstValueFrom, Subscription} from 'rxjs';
-import {AuthStore} from './auth.store';
-import {GameRef} from '../models/game-ref.model';
+import { Subscription, firstValueFrom } from 'rxjs';
+import { AuthStore } from './auth.store';
+import { GameRef } from '../models/game-ref.model';
 
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class GamesStore {
   private readonly db = inject(Firestore);
   private readonly auth = inject(AuthStore);
@@ -36,8 +38,6 @@ export class GamesStore {
       return;
     }
 
-    this.listError.set(null);
-
     const ref = collection(this.db, `users/${uid}/gameRefs`);
     const q = query(ref, orderBy('joinedAt', 'desc'));
 
@@ -45,39 +45,6 @@ export class GamesStore {
       next: rows => this.myGames.set(rows as GameRef[]),
       error: e => this.listError.set(e?.message ?? 'Failed to load games')
     });
-  }
-
-  private buildInitialPlayerState(
-    uid: string,
-    username: string | null,
-    role: 'owner' | 'member'
-  ) {
-    return {
-      uid,
-      username,
-      role,
-      joinedAt: serverTimestamp(),
-      aliveChampionIds: [],
-      graveChampionIds: [],
-      stats: {
-        gamesPlayed: 0,
-        wins: 0,
-        losses: 0,
-        roleCounts: { top: 0, jg: 0, mid: 0, adc: 0, sup: 0 },
-        champCounts: {},
-        champWins: {}
-      }
-    };
-  }
-
-  private buildInitialGameState() {
-    return {
-      phase: 'idle',
-      round: 0,
-      startedAt: null,
-      lastActionAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    };
   }
 
   async createGame(name: string): Promise<string> {
@@ -93,19 +60,21 @@ export class GamesStore {
       const gameDoc = await addDoc(collection(this.db, 'games'), {
         name,
         ownerUid: u.uid,
-        status: 'active',
         inviteCode,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
 
-      const username = this.auth.authUser()?.displayName ?? null;
+      const username = u.displayName ?? null;
 
+      // ✅ SINGLE SOURCE OF TRUTH
       await setDoc(doc(this.db, `games/${gameDoc.id}/members/${u.uid}`), {
         uid: u.uid,
         role: 'owner',
         username,
-        joinedAt: serverTimestamp()
+        joinedAt: serverTimestamp(),
+        round: 0,
+        locked: false
       });
 
       await setDoc(doc(this.db, `users/${u.uid}/gameRefs/${gameDoc.id}`), {
@@ -113,16 +82,6 @@ export class GamesStore {
         role: 'owner',
         joinedAt: serverTimestamp()
       });
-
-      // 1) shared game state
-      await setDoc(doc(this.db, `games/${gameDoc.id}/state/main`),
-        this.buildInitialGameState()
-      );
-
-      // 2) owner player state
-      await setDoc(doc(this.db, `games/${gameDoc.id}/players/${u.uid}`),
-        this.buildInitialPlayerState(u.uid, username, 'owner')
-      );
 
       return gameDoc.id;
     } catch (e: any) {
@@ -143,7 +102,7 @@ export class GamesStore {
     const gamesRef = collection(this.db, 'games');
     const q = query(gamesRef, where('inviteCode', '==', code), limit(1));
 
-    const rows = await firstValueFrom(collectionData(q, {idField: 'id'})) as any[];
+    const rows = await firstValueFrom(collectionData(q, { idField: 'id' })) as any[];
     if (!rows.length) throw new Error('Invalid code');
 
     const gameId = rows[0].id as string;
@@ -151,29 +110,26 @@ export class GamesStore {
     const membersRef = collection(this.db, `games/${gameId}/members`);
     const members = await firstValueFrom(collectionData(membersRef));
 
-    const MAX_PLAYERS = 5;
-    if (members.length >= MAX_PLAYERS) {
+    if (members.length >= 5) {
       throw new Error('Game is full');
     }
 
-    const username = this.auth.authUser()?.displayName ?? null;
+    const username = u.displayName ?? null;
 
     await setDoc(doc(this.db, `games/${gameId}/members/${u.uid}`), {
       uid: u.uid,
-      role: 'member',
+      role: 'player',
       username,
-      joinedAt: serverTimestamp()
+      joinedAt: serverTimestamp(),
+      round: 0,
+      locked: false
     });
 
     await setDoc(doc(this.db, `users/${u.uid}/gameRefs/${gameId}`), {
       gameId,
-      role: 'member',
+      role: 'player',
       joinedAt: serverTimestamp()
     });
-
-    await setDoc(doc(this.db, `games/${gameId}/players/${u.uid}`),
-      this.buildInitialPlayerState(u.uid, username, 'member')
-    );
 
     return gameId;
   }

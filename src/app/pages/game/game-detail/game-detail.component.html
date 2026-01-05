@@ -1,37 +1,53 @@
 <div class="container">
   <div class="row g-3">
+
+    <!-- LEFT: Game + Rollen -->
     <div class="col-8 mt-3">
       <div class="bg-dark rounded-3 p-4">
         <h1>{{ game()?.name }}</h1>
-        <br>
-        @if(state()?.phase === 'idle' && myPlayer()?.role === 'owner') {
 
-        }
-        <button class="btn btn-primary" (click)="startRound()">Start Round</button>
-        <br>
-        @for (member of members(); track member.uid) {
-          <h4>{{member.username}}</h4>
+        @if (gameStore.myPlayer()?.role === 'owner') {
+          <button class="btn btn-success mb-3" (click)="startRound()">
+            Start Round
+          </button>
         }
 
+        <h3>Rollen</h3>
+
+        @for (m of gameStore.members(); track m.uid) {
+          <div class="mb-2">
+            <b>{{ m.username ?? m.uid }}</b> →
+            {{ m.mainRole ?? '—' }}
+            @if (m.secondaryRole) {
+              <span class="text-muted"> + {{ m.secondaryRole }}</span>
+            }
+          </div>
+        }
       </div>
     </div>
+
+    <!-- RIGHT: Lobby Info -->
     <div class="col-4 mt-3">
       <div class="bg-dark rounded-3 p-4">
-        @if (state() && myPlayer()) {
-          <p class="mb-0">Phase: {{ state()!.phase }} | Round: {{ state()!.round }}</p>
-        }
 
         <p><b>Invite Code:</b> {{ game()?.inviteCode }}</p>
-        <button class="btn btn-primary" (click)="copyInviteCode()">Copy</button>
+        <button class="btn btn-outline-primary btn-sm mb-3"
+                (click)="copyInviteCode()">
+          Copy
+        </button>
 
         <h3>Members</h3>
-        <ul>
-          @for (m of members(); track m.uid) {
-            <li>{{ m.username ?? m.uid }} ({{ m.role }})</li>
+        <ul class="list-unstyled">
+          @for (m of gameStore.members(); track m.uid) {
+            <li>
+              {{ m.username ?? m.uid }}
+              <span class="text-muted">({{ m.role }})</span>
+            </li>
           }
         </ul>
 
       </div>
     </div>
+
   </div>
 </div>

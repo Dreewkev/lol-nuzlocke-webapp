@@ -1,161 +1,131 @@
-import {inject, Injectable, signal} from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import {
   collection,
+  collectionData,
   doc,
-  docData,
   Firestore,
-  getDocs,
   increment,
-  serverTimestamp,
-  setDoc,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from '@angular/fire/firestore';
-import {Subscription} from 'rxjs';
-import {GameState} from '../models/game-state.model';
-import {PlayerState} from '../models/player-state.model';
-import {Role} from '../enums/role';
+import { GameMember } from '../models/game-member.model';
+import { ROLES } from '../enums/role';
 
 @Injectable({ providedIn: 'root' })
 export class GameStateStore {
   private readonly db = inject(Firestore);
-  private stateSub?: Subscription;
-  private playerSub?: Subscription;
 
-  readonly state = signal<GameState | null>(null);
-  readonly myPlayer = signal<PlayerState | null>(null);
+  readonly members = signal<GameMember[]>([]);
+  readonly myPlayer = signal<GameMember | null>(null);
   readonly error = signal<string | null>(null);
 
+  /**
+   * Start listening to game members (single source of truth)
+   */
   listen(gameId: string, uid: string) {
-    this.stop();
-
-    this.stateSub = docData(doc(this.db, `games/${gameId}/state/main`)).subscribe({
-      next: s => this.state.set((s as GameState) ?? null),
-      error: e => {
-        this.state.set(null);
-        this.error.set(e?.message ?? 'State listen failed');
-      }
-    });
-
-    this.playerSub = docData(doc(this.db, `games/${gameId}/players/${uid}`)).subscribe({
-      next: p => this.myPlayer.set((p as PlayerState) ?? null),
-      error: e => {
-        this.myPlayer.set(null);
-        this.error.set(e?.message ?? 'Player listen failed');
-      }
+    collectionData(
+      collection(this.db, `games/${gameId}/members`),
+      { idField: 'uid' }
+    ).subscribe({
+      next: (ms) => {
+        const members = ms as GameMember[];
+        this.members.set(members);
+        this.myPlayer.set(members.find(m => m.uid === uid) ?? null);
+      },
+      error: e => this.error.set(e?.message ?? 'Listen failed')
     });
   }
 
   stop() {
-    this.stateSub?.unsubscribe();
-    this.playerSub?.unsubscribe();
-    this.stateSub = undefined;
-    this.playerSub = undefined;
-
-    this.state.set(null);
+    this.members.set([]);
     this.myPlayer.set(null);
     this.error.set(null);
   }
 
+  /**
+   * Owner starts a new round
+   */
   async startRound(gameId: string) {
     if (this.myPlayer()?.role !== 'owner') {
       throw new Error('Only owner can start round');
     }
 
-    await setDoc(doc(this.db, `games/${gameId}/state/main`), {
-      phase: 'idle',
-      round: increment(1),
-      rollsByUid: {},
-      lockedByUid: {},
-      lastActionAt: serverTimestamp()
-    }, { merge: true });
+    const batch = writeBatch(this.db);
 
+    for (const m of this.members()) {
+      batch.update(doc(this.db, `games/${gameId}/members/${m.uid}`), {
+        round: increment(1),
+        mainRole: null,
+        secondaryRole: null,
+        locked: false
+      });
+    }
+
+    await batch.commit();
     await this.rollForAll(gameId);
   }
 
+  /**
+   * Owner rolls roles for all players
+   */
   async rollForAll(gameId: string) {
     if (this.myPlayer()?.role !== 'owner') {
       throw new Error('Only owner can roll');
     }
 
-    const membersSnap = await getDocs(collection(this.db, `games/${gameId}/members`));
-    const uids = membersSnap.docs.map(d => d.id);
+    const members = this.members();
+    if (members.length === 0 || members.length > 5) return;
 
-    if (uids.length === 0) throw new Error('No members in game');
-    if (uids.length > 5) throw new Error('Max 5 players supported');
-
-    const allRoles: Role[] = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'];
-
+    const uids = members.map(m => m.uid);
     const shuffledUids = this.shuffle(uids);
+    const roles = this.shuffle(ROLES);
 
-    const rollsByUid: Record<string, { main: Role; secondary?: Role }> = {};
+    const batch = writeBatch(this.db);
 
-    if (shuffledUids.length === 5) {
-      const roles = this.shuffle(allRoles);
-      for (let i = 0; i < 5; i++) {
-        const uid = shuffledUids[i];
-        rollsByUid[uid] = { main: roles[i] };
-      }
+    if (members.length === 5) {
+      // everyone gets exactly one unique role
+      shuffledUids.forEach((uid, i) => {
+        batch.update(doc(this.db, `games/${gameId}/members/${uid}`), {
+          mainRole: roles[i],
+          secondaryRole: null,
+          locked: false
+        });
+      });
     } else {
-      // 1–4 spieler
-      const mains = this.shuffle(allRoles).slice(0, shuffledUids.length);
+      // 1–4 players: main unique, secondary allowed duplicate (not same as main)
+      shuffledUids.forEach((uid, i) => {
+        const main = roles[i];
+        const secondary = this.shuffle(
+          ROLES.filter(r => r !== main)
+        )[0];
 
-      for (let i = 0; i < shuffledUids.length; i++) {
-        const uid = shuffledUids[i];
-        const main = mains[i];
-
-        const secondaryPool = allRoles.filter(r => r !== main);
-        const secondary = secondaryPool[Math.floor(Math.random() * secondaryPool.length)];
-
-        rollsByUid[uid] = { main, secondary };
-      }
+        batch.update(doc(this.db, `games/${gameId}/members/${uid}`), {
+          mainRole: main,
+          secondaryRole: secondary,
+          locked: false
+        });
+      });
     }
 
-    await setDoc(doc(this.db, `games/${gameId}/state/main`), {
-      phase: 'rolling',
-      rollsByUid,
-      lockedByUid: {},
-      lastActionAt: serverTimestamp()
-    }, { merge: true });
+    await batch.commit();
   }
 
-  // ✅ NEW: Spieler lockt seinen Roll
+  /**
+   * Player locks in their roles
+   */
   async lockIn(gameId: string) {
-    const uid = this.myPlayer()?.uid;
-    if (!uid) throw new Error('Not logged in');
+    const me = this.myPlayer();
+    if (!me) return;
 
-    const s = this.state();
-    if (!s || s.phase !== 'rolling') return;
-
-    const stateRef = doc(this.db, `games/${gameId}/state/main`);
-
-    // mark locked
-    await updateDoc(stateRef, {
-      [`lockedByUid.${uid}`]: true,
-      lastActionAt: serverTimestamp()
-    });
-
-    // optional: nach lock prüfen ob alle gelockt -> phase locked
-    await this.maybeFinishLocking(gameId);
+    await updateDoc(
+      doc(this.db, `games/${gameId}/members/${me.uid}`),
+      { locked: true }
+    );
   }
 
-  private async maybeFinishLocking(gameId: string) {
-    const s = this.state();
-    if (!s?.rollsByUid) return;
-
-    const uids = Object.keys(s.rollsByUid);
-    if (uids.length === 0) return;
-
-    const locked = s.lockedByUid ?? {};
-    const allLocked = uids.every(uid => locked[uid]);
-
-    if (!allLocked) return;
-
-    await setDoc(doc(this.db, `games/${gameId}/state/main`), {
-      phase: 'locked',
-      lastActionAt: serverTimestamp()
-    }, { merge: true });
-  }
-
+  /**
+   * Generic Fisher–Yates shuffle (type-safe)
+   */
   private shuffle<T>(arr: readonly T[]): T[] {
     const a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -164,5 +134,4 @@ export class GameStateStore {
     }
     return a;
   }
-
 }
