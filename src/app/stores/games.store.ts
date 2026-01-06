@@ -77,6 +77,7 @@ export class GamesStore {
 
       await setDoc(doc(this.db, `users/${u.uid}/gameRefs/${gameDoc.id}`), {
         gameId: gameDoc.id,
+        gameName: name,
         role: 'owner',
         joinedAt: serverTimestamp()
       });

@@ -14,7 +14,7 @@
   <ul>
     @for (g of gamesStore.myGames(); track g.gameId) {
       <li>
-        {{ g.gameId }} ({{ g.role }})
+        {{ g.gameName }} ({{ g.role }})
         <a [routerLink]="['/games', g.gameId]">open</a>
       </li>
     }

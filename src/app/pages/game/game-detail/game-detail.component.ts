@@ -1,9 +1,9 @@
 import {Component, effect, inject, signal} from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
-import { doc, docData, Firestore } from '@angular/fire/firestore';
-import { Subscription } from 'rxjs';
-import { Game } from '../../../models/game.model';
-import { AuthStore } from '../../../stores/auth.store';
+import {ActivatedRoute} from '@angular/router';
+import {doc, docData, Firestore} from '@angular/fire/firestore';
+import {Subscription} from 'rxjs';
+import {Game} from '../../../models/game.model';
+import {AuthStore} from '../../../stores/auth.store';
 import {GameStateStore} from '../../../stores/game-state.store';
 import {EndRoundModalComponent} from '../end-round-modal/end-round-modal.component';
 import {GameSummaryModalComponent} from '../game-summary-modal/game-summary-modal.component';
@@ -67,7 +67,9 @@ export class GameDetailComponent {
     });
 
     effect(() => {
-      this.winrate = this.calculateWinrate();
+      if (this.gameStore.stats()) {
+        this.winrate = this.calculateWinrate();
+      }
     });
   }
 
@@ -85,7 +87,7 @@ export class GameDetailComponent {
     this.showEndRoundModal.set(true);
   }
 
-  onRoundDecision(result: 'WIN'|'LOSS') {
+  onRoundDecision(result: 'WIN' | 'LOSS') {
     this.showEndRoundModal.set(false);
     this.gameStore.endRound(this.gameId, result);
   }

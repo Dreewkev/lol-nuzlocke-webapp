@@ -12,8 +12,8 @@
           } @else {
             <b>Winrate: </b><span class="text-danger">{{ winrate }}% </span>
           }
-          <b>Wins: </b>{{ gameStore.stats()!.wins }}
-          <b>Loses: </b>{{ gameStore.stats()!.loses }}
+          <b>Wins: </b>{{ gameStore.stats()?.wins }}
+          <b>Loses: </b>{{ gameStore.stats()?.loses }}
         }
         <br>
 
