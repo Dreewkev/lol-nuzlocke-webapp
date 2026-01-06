@@ -56,7 +56,7 @@
                  placeholder="Type and select…" />
 
           <datalist id="championsList">
-            @for (c of champions; track c) {
+            @for (c of availableChampions(); track c) {
               <option [value]="c"></option>
             }
           </datalist>

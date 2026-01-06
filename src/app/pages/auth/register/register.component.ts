@@ -1,11 +1,11 @@
 import {Component, inject, OnInit} from '@angular/core';
-import {Router, RouterLink} from '@angular/router';
+import {Router} from '@angular/router';
 import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {AuthStore} from '../../../stores/auth.store';
 
 @Component({
   selector: 'app-register',
-  imports: [RouterLink, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './register.component.html',
 })
 export class RegisterComponent implements OnInit {
@@ -59,6 +59,10 @@ export class RegisterComponent implements OnInit {
       }, 2000);
     } catch (err) {
       console.error(err);
+    }
+
+    if (!this.auth.error()) {
+      await this.router.navigateByUrl('/');
     }
   }
 

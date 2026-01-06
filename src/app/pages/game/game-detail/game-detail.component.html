@@ -113,6 +113,7 @@
     [outcome]="gameStore.state()!.outcome!"
     [round]="gameStore.state()!.round"
     [aliveChampions]="gameStore.myPlayer()?.aliveChampions ?? []"
+    [graveChampions]="gameStore.myPlayer()?.graveChampions ?? []"
     (submit)="onSubmitSummary($event)">
   </app-game-summary-modal>
 }

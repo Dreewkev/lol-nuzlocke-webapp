@@ -1,8 +1,8 @@
-import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RoundOutcome } from '../../../enums/roundOutcome';
-import { Role } from '../../../enums/role';
-import { RoundSummarySubmit } from '../../../models/round-summary-submit.model';
+import {Component, computed, EventEmitter, Input, Output, signal} from '@angular/core';
+import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
+import {RoundOutcome} from '../../../enums/roundOutcome';
+import {Role} from '../../../enums/role';
+import {RoundSummarySubmit} from '../../../models/round-summary-submit.model';
 import {CHAMPIONS} from '../../../enums/champions';
 
 @Component({
@@ -12,9 +12,10 @@ import {CHAMPIONS} from '../../../enums/champions';
   templateUrl: './game-summary-modal.component.html',
 })
 export class GameSummaryModalComponent {
-  @Input({ required: true }) outcome!: RoundOutcome; // 'WIN' | 'LOSS'
-  @Input({ required: true }) round!: number;
+  @Input({required: true}) outcome!: RoundOutcome; // 'WIN' | 'LOSS'
+  @Input({required: true}) round!: number;
   @Input() aliveChampions: string[] | null = null;
+  @Input() graveChampions: string[] | null = null;
 
   @Output() submit = new EventEmitter<RoundSummarySubmit>();
   @Output() cancel = new EventEmitter<void>();
@@ -23,6 +24,15 @@ export class GameSummaryModalComponent {
 
   // 👉 für <datalist>
   readonly champions = CHAMPIONS;
+
+  readonly availableChampions = computed(() => {
+    const alive = this.aliveChampions ?? [];
+    const grave = this.graveChampions ?? [];
+
+    return this.champions.filter(
+      c => !alive.includes(c) && !grave.includes(c)
+    );
+  });
 
   // ---- Form ----
   readonly form = new FormGroup({
