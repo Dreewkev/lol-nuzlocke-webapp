@@ -6,6 +6,17 @@
       <div class="bg-dark rounded-3 p-4">
         <h1>{{ game()?.name }}</h1>
 
+        @if (gameStore.stats()) {
+          @if (winrate >= 50) {
+            <b>Winrate: </b><b style="color: limegreen">{{ winrate }}% </b>
+          } @else {
+            <b>Winrate: </b><span class="text-danger">{{ winrate }}% </span>
+          }
+          <b>Wins: </b>{{ gameStore.stats()!.wins }}
+          <b>Loses: </b>{{ gameStore.stats()!.loses }}
+        }
+        <br>
+
         @if (gameStore.myPlayer()?.role === 'owner') {
           @if (gameStore.state()?.phase === 'idle') {
             <button class="btn btn-success mb-3 fw-bold" (click)="startRun()">
@@ -17,7 +28,7 @@
               Start Round
             </button>
           }
-          @if (gameStore.state()?.phase === 'locked'){
+          @if (gameStore.state()?.phase === 'locked') {
             <button class="btn btn-danger mb-3 fw-bold" (click)="endRound()">
               End Round
             </button>

@@ -32,6 +32,8 @@ export class GameDetailComponent {
   readonly showEndRoundModal = signal(false);
   readonly showSummaryModal = signal(false);
 
+  protected winrate = 0;
+
   constructor() {
     // Game-Dokument (Meta: Name, InviteCode, etc.)
     const gameRef = doc(this.db, `games/${this.gameId}`);
@@ -63,6 +65,10 @@ export class GameDetailComponent {
 
       this.showSummaryModal.set(shouldOpen);
     });
+
+    effect(() => {
+      this.winrate = this.calculateWinrate();
+    });
   }
 
   // ---- Aktionen ----
@@ -86,6 +92,14 @@ export class GameDetailComponent {
 
   onSubmitSummary(payload: RoundSummarySubmit) {
     this.gameStore.submitSummary(this.gameId, payload);
+  }
+
+  calculateWinrate() {
+    const wins = this.gameStore.stats()!.wins;
+    const losses = this.gameStore.stats()!.loses;
+    const games = wins + losses;
+
+    return games === 0 ? 0 : Math.round((wins / games) * 100 * 100) / 100;
   }
 
   async copyInviteCode() {

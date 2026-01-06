@@ -88,6 +88,11 @@ export class GamesStore {
         updatedAt: serverTimestamp()
       });
 
+      await setDoc(doc(this.db, `games/${gameDoc.id}/stats/main`), {
+        wins: 0,
+        loses: 0,
+      });
+
       return gameDoc.id;
     } catch (e: any) {
       this.createError.set(e?.message ?? 'Create game failed');

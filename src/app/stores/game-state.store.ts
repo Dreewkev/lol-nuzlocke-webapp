@@ -15,6 +15,7 @@ import {ROLES} from '../enums/role';
 import {CHAMPIONS} from '../enums/champions';
 import {GameState} from '../models/game-state.model';
 import {RoundSummarySubmit} from '../models/round-summary-submit.model';
+import {GameStats} from '../models/game-stats.model';
 
 @Injectable({providedIn: 'root'})
 export class GameStateStore {
@@ -23,10 +24,12 @@ export class GameStateStore {
   readonly members = signal<GameMember[]>([]);
   readonly myPlayer = signal<GameMember | null>(null);
   readonly state = signal<GameState | null>(null);
+  readonly stats = signal<GameStats | null>(null);
   readonly error = signal<string | null>(null);
 
   private membersUnsub?: () => void;
   private stateUnsub?: () => void;
+  private statsUnsub?: () => void;
 
   readonly allSubmitted = computed(() => {
     const s = this.state();
@@ -59,17 +62,25 @@ export class GameStateStore {
       next: s => this.state.set((s as GameState) ?? null),
       error: e => this.error.set(e?.message ?? 'State listen failed')
     }).unsubscribe;
+
+    this.statsUnsub = docData(doc(this.db, `games/${gameId}/stats/main`)).subscribe({
+      next: s => this.stats.set((s as GameStats) ?? null),
+      error: e => this.error.set(e?.message ?? 'Stats listen failed')
+    }).unsubscribe;
   }
 
   stop() {
     this.membersUnsub?.();
     this.stateUnsub?.();
+    this.statsUnsub?.();
     this.membersUnsub = undefined;
     this.stateUnsub = undefined;
+    this.statsUnsub = undefined;
 
     this.members.set([]);
     this.myPlayer.set(null);
     this.state.set(null);
+    this.stats.set(null);
     this.error.set(null);
   }
 
@@ -142,6 +153,17 @@ export class GameStateStore {
       outcome,
       updatedAt: serverTimestamp()
     }, {merge: true});
+
+    if (outcome === 'WIN') {
+      await setDoc(doc(this.db, `games/${gameId}/stats/main`), {
+        wins: increment(1),
+      }, {merge: true});
+    } else {
+      await setDoc(doc(this.db, `games/${gameId}/stats/main`), {
+        loses: increment(1),
+      }, {merge: true});
+    }
+
   }
 
   async submitSummary(gameId: string, payload: RoundSummarySubmit) {
