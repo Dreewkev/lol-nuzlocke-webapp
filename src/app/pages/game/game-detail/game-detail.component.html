@@ -5,16 +5,28 @@
     <div class="col-8 mt-3 d-flex flex-column gap-3">
       <div class="bg-dark rounded-3 p-4">
         <h1>{{ game()?.name }}</h1>
-
+        <b>Run: </b>{{gameStore.stats()?.run}}<br><br>
         @if (gameStore.stats()) {
           @if (winrate >= 50) {
             <b>Winrate: </b><b style="color: limegreen">{{ winrate }}% </b>
           } @else {
             <b>Winrate: </b><span class="text-danger">{{ winrate }}% </span>
           }
+          <br>
           <b>Wins: </b>{{ gameStore.stats()?.wins }}
           <b>Loses: </b>{{ gameStore.stats()?.loses }}
+          <br>
+          <br>
+          <b>ALL-TIME:</b><br>
+          @if (winrate >= 50) {
+            <b>Winrate: </b><b style="color: limegreen">{{ overallWinrate }}% </b>
+          } @else {
+            <b>Winrate: </b><span class="text-danger">{{ overallWinrate }}% </span>
+          }
+          <b>Wins: </b>{{gameStore.stats()?.overallWins ?? 0}}
+          <b>Loses: </b>{{gameStore.stats()?.overallLoses ?? 0}}
         }
+        <br>
         <br>
 
         @if (gameStore.myPlayer()?.role === 'owner') {
@@ -53,11 +65,11 @@
                 }
               </div>
               <div class="mt-2">
-                <b>Alive Champs:</b>
+                <b style="color:limegreen">Alive Champs:</b>
                 {{ (m.aliveChampions ?? []).join(', ') || '—' }}
               </div>
               <div class="mt-2">
-                <b>Grave Champs:</b>
+                <b class="text-danger">Grave Champs:</b>
                 {{ (m.graveChampions ?? []).join(', ') || '—' }}
               </div>
             </div>

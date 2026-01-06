@@ -157,10 +157,12 @@ export class GameStateStore {
     if (outcome === 'WIN') {
       await setDoc(doc(this.db, `games/${gameId}/stats/main`), {
         wins: increment(1),
+        overallWins: increment(1),
       }, {merge: true});
     } else {
       await setDoc(doc(this.db, `games/${gameId}/stats/main`), {
         loses: increment(1),
+        overallLoses: increment(1),
       }, {merge: true});
     }
 
@@ -204,6 +206,55 @@ export class GameStateStore {
         aliveChampions: arrayUnion(payload.gainedChamp)
       });
     }
+
+    // 5) check if run is over
+    await this.checkRunOver(gameId);
+  }
+
+  async checkRunOver(gameId: string) {
+    const state = this.state();
+    if(!state) return;
+
+    if((state.round ?? 0) <= 0) return;
+    if(state.phase !== 'summary') return;
+    if(!this.allSubmitted()) return;
+
+    const eliminated = this.members().find(m => (m.aliveChampions?.length ?? 0) === 0);
+    if (!eliminated) return;
+
+    await this.failRunAndReset(gameId);
+  }
+
+  async failRunAndReset(gameId: string) {
+    if (this.myPlayer()?.role !== 'owner') return;
+
+    const batch = writeBatch(this.db);
+
+    batch.set(doc(this.db, `games/${gameId}/state/main`), {
+      phase: 'idle',
+      round: 0,
+      updatedAt: serverTimestamp(),
+    });
+
+    batch.set(doc(this.db, `games/${gameId}/stats/main`), {
+      loses: 0,
+      wins: 0,
+      run: increment(1),
+    }, {merge: true});
+
+    for (const member of this.members()) {
+      batch.update(doc(this.db, `games/${gameId}/members/${member.uid}`), {
+        aliveChampions: [],
+        graveChampions: [],
+        mainRole: null,
+        secondaryRole: null,
+        summary: null,
+        summarySubmittedRound: null,
+      });
+    }
+
+    await batch.commit();
+
   }
 
 
@@ -211,46 +262,61 @@ export class GameStateStore {
    * Owner rolls roles for all players
    */
   async rollForAll(gameId: string) {
-    if (this.myPlayer()?.role !== 'owner') {
-      throw new Error('Only owner can roll');
-    }
+    if (this.myPlayer()?.role !== 'owner') throw new Error('Only owner can roll');
 
     const members = this.members();
-    if (members.length === 0 || members.length > 5) return;
+    const n = members.length;
+    if (n === 0 || n > 5) return;
 
-    const uids = members.map(m => m.uid);
-    const shuffledUids = this.shuffle(uids);
-    const roles = this.shuffle(ROLES);
+    const uids = this.shuffle(members.map(m => m.uid));
+    const rolesShuffled = this.shuffle([...ROLES]); // copy!
 
     const batch = writeBatch(this.db);
 
-    if (members.length === 5) {
-      // everyone gets exactly one unique role
-      shuffledUids.forEach((uid, i) => {
-        batch.update(doc(this.db, `games/${gameId}/members/${uid}`), {
-          mainRole: roles[i],
-          secondaryRole: null,
-          locked: false
-        });
-      });
-    } else {
-      // 1–4 players: main unique, secondary allowed duplicate (not same as main)
-      shuffledUids.forEach((uid, i) => {
-        const main = roles[i];
-        const secondary = this.shuffle(
-          ROLES.filter(r => r !== main)
-        )[0];
+    // Main roles: unique for everyone (up to 5)
+    const mains = rolesShuffled.slice(0, n);
 
+    if (n === 5) {
+      uids.forEach((uid, i) => {
         batch.update(doc(this.db, `games/${gameId}/members/${uid}`), {
-          mainRole: main,
-          secondaryRole: secondary,
-          locked: false
+          mainRole: mains[i],
+          secondaryRole: null,
+          locked: false,
         });
       });
+
+      await batch.commit();
+      return;
     }
+
+    // Secondary roles: try to use remaining unique roles first
+    const remaining = this.shuffle(
+      ROLES.filter(r => !mains.includes(r))
+    ); // roles not used as main
+
+    uids.forEach((uid, i) => {
+      const main = mains[i];
+
+      // best effort: unique secondary from remaining pool
+      let secondary = remaining[i] ?? null;
+
+      // fallback: if we ran out (e.g. 4 players -> remaining has 1 role),
+      // pick random role != main
+      if (!secondary) {
+        const pool = ROLES.filter(r => r !== main);
+        secondary = this.shuffle([...pool])[0];
+      }
+
+      batch.update(doc(this.db, `games/${gameId}/members/${uid}`), {
+        mainRole: main,
+        secondaryRole: secondary,
+        locked: false,
+      });
+    });
 
     await batch.commit();
   }
+
 
   /**
    * Player locks in their roles

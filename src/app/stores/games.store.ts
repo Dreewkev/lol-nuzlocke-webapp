@@ -92,6 +92,9 @@ export class GamesStore {
       await setDoc(doc(this.db, `games/${gameDoc.id}/stats/main`), {
         wins: 0,
         loses: 0,
+        overallWins: 0,
+        overallLoses: 0,
+        run: 1,
       });
 
       return gameDoc.id;

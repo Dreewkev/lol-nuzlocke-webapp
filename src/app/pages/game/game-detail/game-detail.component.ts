@@ -33,6 +33,7 @@ export class GameDetailComponent {
   readonly showSummaryModal = signal(false);
 
   protected winrate = 0;
+  protected overallWinrate = 0;
 
   constructor() {
     // Game-Dokument (Meta: Name, InviteCode, etc.)
@@ -68,7 +69,8 @@ export class GameDetailComponent {
 
     effect(() => {
       if (this.gameStore.stats()) {
-        this.winrate = this.calculateWinrate();
+        this.winrate = this.calculateWinrate(this.gameStore.stats()!.wins, this.gameStore.stats()!.loses);
+        this.overallWinrate = this.calculateWinrate(this.gameStore.stats()!.overallWins, this.gameStore.stats()!.overallLoses)
       }
     });
   }
@@ -96,9 +98,7 @@ export class GameDetailComponent {
     this.gameStore.submitSummary(this.gameId, payload);
   }
 
-  calculateWinrate() {
-    const wins = this.gameStore.stats()!.wins;
-    const losses = this.gameStore.stats()!.loses;
+  calculateWinrate(wins: number, losses: number) {
     const games = wins + losses;
 
     return games === 0 ? 0 : Math.round((wins / games) * 100 * 100) / 100;
