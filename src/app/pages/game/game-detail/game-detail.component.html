@@ -1,42 +1,82 @@
 <div class="container">
-  <div class="row g-3">
+  <div class="row g-3 align-items-stretch">
 
     <!-- LEFT: Game + Rollen -->
-    <div class="col-8 mt-3">
+    <div class="col-8 mt-3 d-flex flex-column gap-3">
       <div class="bg-dark rounded-3 p-4">
         <h1>{{ game()?.name }}</h1>
 
         @if (gameStore.myPlayer()?.role === 'owner') {
-          <button class="btn btn-success mb-3" (click)="startRound()">
-            Start Round
-          </button>
-        }
-
-        <h3>Rollen</h3>
-
-        @for (m of gameStore.members(); track m.uid) {
-          <div class="mb-2">
-            <b>{{ m.username ?? m.uid }}</b> →
-            {{ m.mainRole ?? '—' }}
-            @if (m.secondaryRole) {
-              <span class="text-muted"> + {{ m.secondaryRole }}</span>
-            }
-          </div>
+          @if (gameStore.state()?.phase === 'idle') {
+            <button class="btn btn-success mb-3 fw-bold" (click)="startRun()">
+              Start new Run
+            </button>
+          }
+          @if (gameStore.state()?.phase === 'rolling') {
+            <button class="btn btn-success mb-3 fw-bold" (click)="startRound()">
+              Start Round
+            </button>
+          }
+          @if (gameStore.state()?.phase === 'locked'){
+            <button class="btn btn-danger mb-3 fw-bold" (click)="endRound()">
+              End Round
+            </button>
+          }
+          @if (gameStore.state()?.phase === 'summary' && gameStore.allSubmitted()) {
+            <button class="btn btn-success mb-3 fw-bold" (click)="startRound()">
+              Start Next Round
+            </button>
+          }
         }
       </div>
+
+      @for (m of gameStore.members(); track m.uid) {
+        <div class="bg-dark rounded-3 p-4">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <h4 class="mb-1">{{ m.username ?? m.uid }}</h4>
+              <div class="text-muted">
+                {{ m.mainRole ?? '—' }}
+                @if (m.secondaryRole) {
+                  + {{ m.secondaryRole }}
+                }
+              </div>
+              <div class="mt-2">
+                <b>Alive Champs:</b>
+                {{ (m.aliveChampions ?? []).join(', ') || '—' }}
+              </div>
+              <div class="mt-2">
+                <b>Grave Champs:</b>
+                {{ (m.graveChampions ?? []).join(', ') || '—' }}
+              </div>
+            </div>
+
+            <!-- Owner Badge -->
+            <div class="text-muted">
+              {{ m.role }}
+            </div>
+          </div>
+        </div>
+      }
     </div>
 
     <!-- RIGHT: Lobby Info -->
     <div class="col-4 mt-3">
-      <div class="bg-dark rounded-3 p-4">
+      <div class="bg-dark rounded-3 p-4 h-100">
+        <div class="mb-3">
+          <p><b>Invite Code:</b> {{ game()?.inviteCode }}
+            <button class="btn btn-outline-primary btn-sm m-lg-2"
+                    (click)="copyInviteCode()">
+              Copy
+            </button>
+          </p>
+        </div>
 
-        <p><b>Invite Code:</b> {{ game()?.inviteCode }}</p>
-        <button class="btn btn-outline-primary btn-sm mb-3"
-                (click)="copyInviteCode()">
-          Copy
-        </button>
+        <h4>Game Info</h4>
+        <b>Round:</b> {{ gameStore.state()?.round ?? '-' }}<br>
+        <b>State: </b>{{ gameStore.state()?.phase ?? '-' }}<br><br>
 
-        <h3>Members</h3>
+        <h4>Members</h4>
         <ul class="list-unstyled">
           @for (m of gameStore.members(); track m.uid) {
             <li>
@@ -45,9 +85,24 @@
             </li>
           }
         </ul>
-
       </div>
     </div>
-
   </div>
 </div>
+
+@if (showEndRoundModal()) {
+  <app-end-round-modal
+    (decision)="onRoundDecision($event)"
+    (cancel)="showEndRoundModal.set(false)">
+  </app-end-round-modal>
+}
+
+@if (showSummaryModal()) {
+  <app-game-summary-modal
+    [outcome]="gameStore.state()!.outcome!"
+    [round]="gameStore.state()!.round"
+    [aliveChampions]="gameStore.myPlayer()?.aliveChampions ?? []"
+    (submit)="onSubmitSummary($event)">
+  </app-game-summary-modal>
+}
+

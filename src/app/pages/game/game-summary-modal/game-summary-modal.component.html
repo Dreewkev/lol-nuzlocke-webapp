@@ -1,0 +1,108 @@
+<div class="modal-backdrop" (click)="cancel.emit()">
+  <div class="modal-card bg-dark rounded-3 p-4" (click)="$event.stopPropagation()">
+
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h3 class="mb-1">Round Summary</h3>
+        <div class="text-muted">
+          Round: {{ round }} • Result:
+          <span [class.text-success]="outcome==='WIN'" [class.text-danger]="outcome==='LOSS'">
+            {{ outcome }}
+          </span>
+        </div>
+      </div>
+
+      <button class="btn btn-outline-secondary btn-sm" (click)="cancel.emit()">X</button>
+    </div>
+
+    <hr class="my-3" />
+
+    <form [formGroup]="form">
+
+      <!-- Actual lane -->
+      <div class="mb-3">
+        <label class="form-label fw-bold">Which lane did you actually play?</label>
+        <select class="form-select" formControlName="actualLane">
+          <option [ngValue]="null">— select —</option>
+          @for (r of roles; track r) {
+            <option [ngValue]="r">{{ r }}</option>
+          }
+        </select>
+      </div>
+
+      <!-- KP50 (WIN + LOSS) -->
+      <div class="mb-3">
+        <label class="form-label fw-bold">Reached ≥ 50% Kill Participation?</label>
+        <div class="d-flex gap-3">
+          <label class="form-check">
+            <input class="form-check-input" type="radio" [value]="true" formControlName="kp50" />
+            <span class="form-check-label">Yes</span>
+          </label>
+          <label class="form-check">
+            <input class="form-check-input" type="radio" [value]="false" formControlName="kp50" />
+            <span class="form-check-label">No</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Earned champion (only if KP50 true) -->
+      @if (form.controls.kp50.value === true) {
+        <div class="mb-3">
+          <label class="form-label fw-bold">Which champion did you earn? (lane opponent)</label>
+
+          <input class="form-control"
+                 formControlName="gainedChamp"
+                 list="championsList"
+                 placeholder="Type and select…" />
+
+          <datalist id="championsList">
+            @for (c of champions; track c) {
+              <option [value]="c"></option>
+            }
+          </datalist>
+
+          <div class="form-text text-muted">
+            Start typing to see matching champions.
+          </div>
+        </div>
+      }
+
+      @if (outcome === 'LOSS') {
+        <!-- played champ -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">Which champion did you play?</label>
+
+          @if ((aliveChampions?.length ?? 0) > 0) {
+            <select class="form-select" formControlName="playedChamp">
+              <option value="">— select —</option>
+              @for (c of aliveChampions; track c) {
+                <option [value]="c">{{ c }}</option>
+              }
+            </select>
+          } @else {
+            <input class="form-control"
+                   formControlName="playedChamp"
+                   placeholder="Champion ID (no list available)" />
+          }
+        </div>
+      }
+
+    </form>
+
+    @if (errorMsg()) {
+      <div class="alert alert-danger py-2 my-3">
+        {{ errorMsg() }}
+      </div>
+    }
+
+    <div class="d-flex gap-2 mt-3">
+      <button class="btn btn-primary flex-fill" (click)="submitClicked()">
+        Submit
+      </button>
+      <button class="btn btn-outline-secondary flex-fill" (click)="cancel.emit()">
+        Cancel
+      </button>
+    </div>
+
+  </div>
+</div>

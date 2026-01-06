@@ -1,14 +1,21 @@
-import { Component, inject, signal } from '@angular/core';
+import {Component, effect, inject, signal} from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { doc, docData, Firestore } from '@angular/fire/firestore';
 import { Subscription } from 'rxjs';
 import { Game } from '../../../models/game.model';
 import { AuthStore } from '../../../stores/auth.store';
 import {GameStateStore} from '../../../stores/game-state.store';
+import {EndRoundModalComponent} from '../end-round-modal/end-round-modal.component';
+import {GameSummaryModalComponent} from '../game-summary-modal/game-summary-modal.component';
+import {RoundSummarySubmit} from '../../../models/round-summary-submit.model';
 
 @Component({
   selector: 'app-game-detail',
   templateUrl: './game-detail.component.html',
+  imports: [
+    EndRoundModalComponent,
+    GameSummaryModalComponent
+  ]
 })
 export class GameDetailComponent {
   private readonly route = inject(ActivatedRoute);
@@ -22,6 +29,8 @@ export class GameDetailComponent {
 
   readonly game = signal<Game | null>(null);
   readonly error = signal<string | null>(null);
+  readonly showEndRoundModal = signal(false);
+  readonly showSummaryModal = signal(false);
 
   constructor() {
     // Game-Dokument (Meta: Name, InviteCode, etc.)
@@ -32,27 +41,51 @@ export class GameDetailComponent {
     });
 
     // Store starten
-    const uid = this.auth.authUser()?.uid;
-    if (!uid) {
-      this.error.set('Not logged in');
-      return;
-    }
+    effect(() => {
+      const uid = this.auth.authUser()?.uid;
 
-    this.gameStore.listen(this.gameId, uid);
+      if (!uid) return;
+      this.gameStore.listen(this.gameId, uid);
+    });
+
+    effect(() => {
+      const state = this.gameStore.state();
+      const me = this.gameStore.myPlayer();
+
+      if (!state || !me) {
+        this.showSummaryModal.set(false);
+        return;
+      }
+
+      const shouldOpen =
+        state.phase === 'summary' &&
+        me.summarySubmittedRound !== state.round;
+
+      this.showSummaryModal.set(shouldOpen);
+    });
   }
 
   // ---- Aktionen ----
+
+  startRun() {
+    this.gameStore.startRun(this.gameId);
+  }
 
   startRound() {
     this.gameStore.startRound(this.gameId);
   }
 
-  rollForAll() {
-    this.gameStore.rollForAll(this.gameId);
+  endRound() {
+    this.showEndRoundModal.set(true);
   }
 
-  lockIn() {
-    this.gameStore.lockIn(this.gameId);
+  onRoundDecision(result: 'WIN'|'LOSS') {
+    this.showEndRoundModal.set(false);
+    this.gameStore.endRound(this.gameId, result);
+  }
+
+  onSubmitSummary(payload: RoundSummarySubmit) {
+    this.gameStore.submitSummary(this.gameId, payload);
   }
 
   async copyInviteCode() {

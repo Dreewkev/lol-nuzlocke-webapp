@@ -73,14 +73,19 @@ export class GamesStore {
         role: 'owner',
         username,
         joinedAt: serverTimestamp(),
-        round: 0,
-        locked: false
       });
 
       await setDoc(doc(this.db, `users/${u.uid}/gameRefs/${gameDoc.id}`), {
         gameId: gameDoc.id,
         role: 'owner',
         joinedAt: serverTimestamp()
+      });
+
+      await setDoc(doc(this.db, `games/${gameDoc.id}/state/main`), {
+        phase: 'idle',
+        round: 0,
+        outcome: null,
+        updatedAt: serverTimestamp()
       });
 
       return gameDoc.id;
@@ -121,8 +126,6 @@ export class GamesStore {
       role: 'player',
       username,
       joinedAt: serverTimestamp(),
-      round: 0,
-      locked: false
     });
 
     await setDoc(doc(this.db, `users/${u.uid}/gameRefs/${gameId}`), {
