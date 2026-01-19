@@ -80,6 +80,7 @@ export const CHAMPIONS = [
   'Malzahar',
   'Maokai',
   'MasterYi',
+  'Mel',
   'Milio',
   'MissFortune',
   'Mordekaiser',

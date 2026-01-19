@@ -129,6 +129,8 @@ export class GamesStore {
     }
 
     const username = u.displayName ?? null;
+    const gameName = rows[0].name ?? null;
+    console.log(gameName)
 
     await setDoc(doc(this.db, `games/${gameId}/members/${u.uid}`), {
       uid: u.uid,
@@ -139,6 +141,7 @@ export class GamesStore {
 
     await setDoc(doc(this.db, `users/${u.uid}/gameRefs/${gameId}`), {
       gameId,
+      gameName,
       role: 'player',
       joinedAt: serverTimestamp()
     });
